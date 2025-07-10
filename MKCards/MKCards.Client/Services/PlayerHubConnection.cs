@@ -3,50 +3,78 @@ using Microsoft.AspNetCore.SignalR.Client;
 
 namespace MKCards.Client.Services
 {
-    public class PlayerHubConnection : IAsyncDisposable
-    {
-        public HubConnection? HubConnection;
-        private readonly NavigationManager _navigationManager;
+	using PlayerConnectionString = String;
+	public class PlayerHubConnection : IAsyncDisposable
+	{
+		private HubConnection? _hubConnection;
+		public PlayerConnectionString? Id => _hubConnection?.ConnectionId;
+		public bool IsConnected => _hubConnection?.State == HubConnectionState.Connected;
+		private readonly NavigationManager _navigationManager;
 
-        public PlayerHubConnection(NavigationManager navigationManager)
-        {
-            _navigationManager = navigationManager;
-        }
+		public PlayerHubConnection(NavigationManager navigationManager)
+		{
+			_navigationManager = navigationManager;
+		}
 
-        public async Task StartConnectionAsync()
-        {
-            if (HubConnection is null)
-            {
-                HubConnection = new HubConnectionBuilder()
-                    .WithUrl(_navigationManager.ToAbsoluteUri("/gamehub"))
-                    .WithAutomaticReconnect()
-                    .Build();
+		public async Task StartConnectionAsync(string url)
+		{
+			if (_hubConnection is null)
+			{
+				_hubConnection = new HubConnectionBuilder()
+					.WithUrl(_navigationManager.ToAbsoluteUri(url))
+					.WithAutomaticReconnect()
+					.Build();
 
-                await HubConnection.StartAsync();
-            }
-        }
+				await _hubConnection.StartAsync();
+			}
+		}
 
-        public async Task SendMessageAsync(string method, params object[] args)
-        {
-            if (HubConnection is not null)
-            {
-                await HubConnection.SendAsync(method, args);
-            }
-        }
+		public async Task SendMessageAsync(string method, params object[] args)
+		{
+			if (_hubConnection is not null)
+			{
+				await _hubConnection.SendCoreAsync(method, args);
+			}
+		}
 
-        //public Task On<T>(string methodName, Action<T> handler)
-        //{
-        //    return await _hubConnection.On(methodName, handler);
-        //}
+		public IDisposable RegisterHandler<T>(string methodName, Func<T, Task> handler)
+		{
+			if (_hubConnection is not null)
+			{
+				return _hubConnection.On<T>(methodName, handler);
+			}
 
-        public HubConnectionState? ConnectionState => HubConnection?.State;
+			throw new InvalidOperationException("Hub connection is not initialized.");
+		}
 
-        public async ValueTask DisposeAsync()
-        {
-            if (HubConnection is not null)
-            {
-                await HubConnection.DisposeAsync();
-            }
-        }
-    }
+		public IDisposable RegisterHandler<T>(string methodName, Action<T> handler)
+		{
+			if (_hubConnection != null)
+			{
+				return _hubConnection.On<T>(methodName, handler);
+			}
+
+			throw new InvalidOperationException("Connection has not been started yet!");
+		}
+
+		public IDisposable RegisterHandler(string methodName, Action handler)
+		{
+			if (_hubConnection != null)
+			{
+				return _hubConnection.On(methodName, handler);
+			}
+
+			throw new InvalidOperationException("Connection has not been started yet!");
+		}
+
+		public HubConnectionState? ConnectionState => _hubConnection?.State;
+
+		public async ValueTask DisposeAsync()
+		{
+			if (_hubConnection is not null)
+			{
+				await _hubConnection.DisposeAsync();
+			}
+		}
+	}
 }

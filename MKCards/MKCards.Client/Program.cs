@@ -10,16 +10,12 @@ namespace MKCards.Client
         {
             var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
-            // Add HttpClient
             builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
-            // Add SignalR client services
-            // builder.Services.AddSingleton<HubConnectionBuilder>();
             builder.Services.AddAuthorizationCore();
             builder.Services.AddCascadingAuthenticationState();
             builder.Services.AddSingleton<AuthenticationStateProvider, PersistentAuthenticationStateProvider>();
 
-            // Add logging
             builder.Services.AddLogging();
 
             builder.Services.AddSingleton<PlayerHubConnection>();
@@ -27,7 +23,7 @@ namespace MKCards.Client
             var host = builder.Build();
 
             var playerHubConnectionService = host.Services.GetRequiredService<PlayerHubConnection>();
-            await playerHubConnectionService.StartConnectionAsync();
+            await playerHubConnectionService.StartConnectionAsync("/gamehub");
 
             await host.RunAsync();
         }
