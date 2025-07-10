@@ -1,0 +1,46 @@
+﻿@page "/game/counter"
+@using Microsoft.AspNetCore.SignalR.Client
+@using MKCards.Common.Models;
+@using MKCards.Client.Services
+@inject NavigationManager Nav
+@inject PlayerHubConnection Connection
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+
+<PageTitle>Counter</PageTitle>
+
+<h1>Counter</h1>
+
+<p role="status">Current count: @counter</p>
+
+<button class="btn btn-primary" @onclick="IncrementCounter">+1</button>
+
+<div class="mt-3">
+    
+    <p>Connection status: <span class="@(IsConnected ? "text-success" : "text-danger")">@(IsConnected ? "Connected" : "Disconnected")</span></p>
+    <p>CoonectionID: @Connection.HubConnection.ConnectionId</p>
+</div>
+
+@code {
+    private int counter = 0;
+
+    public bool IsConnected =>
+        Connection.HubConnection?.State == HubConnectionState.Connected;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Console.WriteLine("start");
+        Connection.HubConnection.On("ChangeIncrement", () =>
+        {
+            counter++;
+            StateHasChanged();
+        });
+        Console.WriteLine("end");
+    }
+
+    private async Task IncrementCounter()
+    {
+        Console.WriteLine("Increment counter");
+        await Connection.HubConnection.SendAsync("IncrementCounter");
+        Console.WriteLine("After increment");
+    }
+}
