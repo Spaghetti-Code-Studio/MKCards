@@ -19,13 +19,8 @@ namespace MKCards.Server.Hubs
 
 			if (response.Success)
 			{
-				// Join the creator to their game group
 				await Groups.AddToGroupAsync(Context.ConnectionId, response.GameId);
-
-				// Notify the creator
 				await Clients.Caller.SendAsync("GameCreated", response);
-
-				// Notify all clients about the new game server
 				await Clients.All.SendAsync("GameServerListUpdated", await _gameServerService.GetAllGameServersAsync());
 			}
 			else
@@ -40,14 +35,9 @@ namespace MKCards.Server.Hubs
 
 			if (response.Success)
 			{
-				// Add the player to the game group
 				await Groups.AddToGroupAsync(Context.ConnectionId, request.GameId);
-
-				// Notify the joining player
 				await Clients.Caller.SendAsync("GameJoined", response);
-
-				// Notify all players in the game about the new player
-				await Clients.Group(request.GameId).SendAsync("PlayerJoined", new
+				await Clients.Group(request.GameId).SendAsync("PlayerJoined", new PlayerJoinedResponse
 				{
 					Success = true,
 					PlayerId = Context.ConnectionId,
@@ -55,7 +45,6 @@ namespace MKCards.Server.Hubs
 					GameServer = response.GameServer
 				});
 
-				// Update the game server list for all clients
 				await Clients.All.SendAsync("GameServerListUpdated", await _gameServerService.GetAllGameServersAsync());
 			}
 			else
@@ -66,73 +55,80 @@ namespace MKCards.Server.Hubs
 
 		public async Task LeaveGameServer()
 		{
-			var gameServer = await _gameServerService.GetGameServerByConnectionIdAsync(Context.ConnectionId);
+			var result = await _gameServerService.GetGameServerByConnectionIdAsync(Context.ConnectionId);
 
-			if (gameServer != null)
+			if (result.Success && result.GameServer is not null)
 			{
-				// Remove from game group
+				GameServer gameServer = result.GameServer;
 				await Groups.RemoveFromGroupAsync(Context.ConnectionId, gameServer.Id);
 
-				// Remove from service
 				var response = await _gameServerService.LeaveGameServerAsync(Context.ConnectionId);
 
-				// Notify remaining players
-				await Clients.Group(gameServer.Id).SendAsync("PlayerLeft", new
+				await Clients.Group(gameServer.Id).SendAsync("PlayerLeft", new PlayerLeftResponse
 				{
 					Success = response.Success,
 					GameServer = response.GameServer
 				});
 
-				// Update the game server list for all clients
 				await Clients.All.SendAsync("GameServerListUpdated", await _gameServerService.GetAllGameServersAsync());
+			}
+			else
+			{
+				await Clients.Caller.SendAsync("Error", result.Message);
 			}
 		}
 
 		public async Task SendMessageToGame(string message)
 		{
-			var gameServer = await _gameServerService.GetGameServerByConnectionIdAsync(Context.ConnectionId);
+			var result = await _gameServerService.GetGameServerByConnectionIdAsync(Context.ConnectionId);
 
-			if (gameServer != null && gameServer.Players.TryGetValue(Context.ConnectionId, out var player))
+			// TODO: we might want to differentiate between two different errors: one coming from GetGameServerByConnectionIdAsync(), the second is the check below.
+			if (result.Success && result.GameServer is not null && result.GameServer.Players.TryGetValue(Context.ConnectionId, out var player))
 			{
-				await Clients.Group(gameServer.Id).SendAsync("GameMessage", new
+				await Clients.Group(result.GameServer.Id).SendAsync("GameMessage", new MessageSentResponse
 				{
 					Success = true,
 					PlayerName = player.Name,
 					Message = message,
-					Timestamp = DateTime.UtcNow
+					TimeStamp = DateTime.UtcNow
 				});
+			}
+			else
+			{
+				await Clients.Caller.SendAsync("Error", result.Message);
 			}
 		}
 
 		public async Task StartGame()
 		{
-			var gameServer = await _gameServerService.GetGameServerByConnectionIdAsync(Context.ConnectionId);
+			var result = await _gameServerService.GetGameServerByConnectionIdAsync(Context.ConnectionId);
 
-			if (gameServer != null && gameServer.CreatorConnectionId == Context.ConnectionId)
+			// TODO: we might want to differentiate between two different errors: one coming from GetGameServerByConnectionIdAsync(), the second is the check below.
+			if (result.Success && result.GameServer is not null && result.GameServer.CreatorConnectionId == Context.ConnectionId)
 			{
-				gameServer.State = GameServer.GameState.InProgress;
+				result.GameServer.State = GameServer.GameState.InProgress;
 
-				await Clients.Group(gameServer.Id).SendAsync("GameStarted", new GameStartedResponse
+				await Clients.Group(result.GameServer.Id).SendAsync("GameStarted", new GameStartedResponse
 				{
 					Success = true,
-					GameServer = gameServer
+					GameServer = result.GameServer
 				});
 
-				// Update the game server list for all clients
 				await Clients.All.SendAsync("GameServerListUpdated", await _gameServerService.GetAllGameServersAsync());
+			}
+			else
+			{
+				await Clients.Caller.SendAsync("Error", result.Message);
 			}
 		}
 
 		public async Task IncrementCounter()
 		{
-			var id = Context.ConnectionId;
-			var gameServer = await _gameServerService.GetGameServerByConnectionIdAsync(Context.ConnectionId);
-			await Clients.Group(gameServer.Id).SendAsync("ChangeIncrement");
-		}
-
-		public async Task<GameServer?> GetGameServerByConnectionIdAsync(string id)
-		{
-			return await _gameServerService.GetGameServerByConnectionIdAsync(id);
+			var result = await _gameServerService.GetGameServerByConnectionIdAsync(Context.ConnectionId);
+			if (result.Success && result.GameServer is not null)
+			{
+				await Clients.Group(result.GameServer.Id).SendAsync("ChangeIncrement");
+			}
 		}
 
 		public async Task GetGameServerList()

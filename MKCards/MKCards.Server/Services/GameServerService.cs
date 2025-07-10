@@ -1,5 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Diagnostics;
 using MKCards.Common.Models;
 
 namespace MKCards.Server.Services
@@ -12,21 +11,23 @@ namespace MKCards.Server.Services
 		Task<GameServerResponse> CreateGameServerAsync(CreateGameRequest request, PlayerConnectionString connectionId);
 		Task<GameServerResponse> JoinGameServerAsync(JoinGameRequest request, PlayerConnectionString connectionId);
 		Task<PlayerLeftResponse> LeaveGameServerAsync(PlayerConnectionString connectionId);
-		Task<GameServer?> GetGameServerAsync(GameId gameId);
+		Task<GameServerByConnectionIdResponse> GetGameServerAsync(GameId gameId);
 		Task<List<GameServer>> GetAllGameServersAsync();
-		Task<GameServer?> GetGameServerByConnectionIdAsync(PlayerConnectionString connectionId);
+		Task<GameServerByConnectionIdResponse> GetGameServerByConnectionIdAsync(PlayerConnectionString connectionId);
 		Task<bool> RemoveEmptyGameServersAsync();
 	}
 
+	// TODO: currently, all these methods are async, although C# advices me remove async from them, as they have no await in them - in the future, they might?
 	public class GameServerService : IGameServerService
 	{
-
 		private readonly ConcurrentDictionary<GameId, GameServer> _gameServers = new();
 		private readonly ConcurrentDictionary<PlayerConnectionString, GameId> _connectionToGameMap = new();
 
+		private readonly GameIdGenerator _gameIdGenerator = new(6);
+
 		private bool IsGameNameUnique(string name) => !_gameServers.Values.Any(gameServer => gameServer.Name == name);
 
-		public async Task<GameServerResponse> CreateGameServerAsync(CreateGameRequest request, string connectionId)
+		public async Task<GameServerResponse> CreateGameServerAsync(CreateGameRequest request, PlayerConnectionString connectionId)
 		{
 			if (!IsGameNameUnique(request.GameName))
 			{
@@ -55,19 +56,20 @@ namespace MKCards.Server.Services
 			};
 
 			gameServer.Players.TryAdd(connectionId, creator);
+
 			_gameServers.TryAdd(gameId, gameServer);
 			_connectionToGameMap.TryAdd(connectionId, gameId);
 
 			return new GameServerResponse
 			{
 				Success = true,
-				Message = "Game server created successfully",
+				Message = $"Game server `{gameId}` created successfully.",
 				GameId = gameId,
 				GameServer = gameServer
 			};
 		}
 
-		public async Task<GameServerResponse> JoinGameServerAsync(JoinGameRequest request, string connectionId)
+		public async Task<GameServerResponse> JoinGameServerAsync(JoinGameRequest request, PlayerConnectionString connectionId)
 		{
 			if (!_gameServers.TryGetValue(request.GameId, out var gameServer))
 			{
@@ -113,27 +115,27 @@ namespace MKCards.Server.Services
 			};
 
 			gameServer.Players.TryAdd(connectionId, player);
+
 			_connectionToGameMap.TryAdd(connectionId, request.GameId);
 
 			return new GameServerResponse
 			{
 				Success = true,
-				Message = "Successfully joined game server",
+				Message = $"Player `{player.Name}` successfully joined game server.",
 				GameId = request.GameId,
 				GameServer = gameServer
 			};
 		}
 
-		public async Task<PlayerLeftResponse> LeaveGameServerAsync(string connectionId)
+		public async Task<PlayerLeftResponse> LeaveGameServerAsync(PlayerConnectionString connectionId)
 		{
-			Debug.Assert(connectionId != null);
-
 			if (!_connectionToGameMap.TryGetValue(connectionId, out var gameId))
 			{
 				return new PlayerLeftResponse
 				{
 					Success = false,
-					GameServer = null
+					GameServer = null,
+					Message = "Unknown connection!"
 				};
 			}
 
@@ -142,47 +144,62 @@ namespace MKCards.Server.Services
 				return new PlayerLeftResponse
 				{
 					Success = false,
-					GameServer = null
+					GameServer = null,
+					Message = "Unknown game server!"
 				};
 			}
 
 			gameServer.Players.TryRemove(connectionId, out _);
 			_connectionToGameMap.TryRemove(connectionId, out _);
 
-			// Remove game server if empty
 			if (gameServer.Players.IsEmpty)
 			{
 				_gameServers.TryRemove(gameId, out _);
 				return new PlayerLeftResponse
 				{
 					Success = true,
-					GameServer = null
+					GameServer = null,
+					Message = "Player was successfully removed. Game server had become empty and was removed."
 				};
 			}
 
 			return new PlayerLeftResponse
 			{
 				Success = true,
+				GameServer = gameServer,
+				Message = "Player was successfully removed."
+			};
+		}
+
+		public async Task<GameServerByConnectionIdResponse> GetGameServerAsync(GameId gameId)
+		{
+			if (!_gameServers.TryGetValue(gameId, out var gameServer))
+			{
+				return new GameServerByConnectionIdResponse
+				{
+					Success = false,
+					Message = $"Game server with ID `{gameId}` does not exist!"
+				};
+			}
+
+			return new GameServerByConnectionIdResponse
+			{
+				Success = true,
 				GameServer = gameServer
 			};
 		}
 
-		public async Task<GameServer?> GetGameServerAsync(string gameId)
-		{
-			_gameServers.TryGetValue(gameId, out var gameServer);
-			return gameServer;
-		}
+		public async Task<List<GameServer>> GetAllGameServersAsync() => _gameServers.Values.ToList();
 
-		public async Task<List<GameServer>> GetAllGameServersAsync()
-		{
-			return _gameServers.Values.ToList();
-		}
-
-		public async Task<GameServer?> GetGameServerByConnectionIdAsync(string connectionId)
+		public async Task<GameServerByConnectionIdResponse> GetGameServerByConnectionIdAsync(PlayerConnectionString connectionId)
 		{
 			if (!_connectionToGameMap.TryGetValue(connectionId, out var gameId))
 			{
-				return null;
+				return new GameServerByConnectionIdResponse
+				{
+					Success = false,
+					Message = $"Connection with ID `{connectionId}` does not exist!"
+				};
 			}
 
 			return await GetGameServerAsync(gameId);
@@ -198,13 +215,9 @@ namespace MKCards.Server.Services
 			return true;
 		}
 
-		private string GenerateGameId()
+		private GameId GenerateGameId()
 		{
-			// Generate a 6-character alphanumeric code
-			const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-			var random = new Random();
-			return new string(Enumerable.Repeat(chars, 6)
-				.Select(s => s[random.Next(s.Length)]).ToArray());
+			return _gameIdGenerator.GenerateId();
 		}
 	}
 }

@@ -25,6 +25,7 @@
 	{
 		public bool Success { get; set; }
 		public GameServer? GameServer { get; set; }
+		public string Message { get; set; } = string.Empty;
 	}
 
 	public class GameServerResponse
@@ -47,5 +48,12 @@
 	{
 		public bool Success { get; set; }
 		public GameServer? GameServer { get; set; }
+	}
+
+	public class GameServerByConnectionIdResponse
+	{
+		public bool Success { get; set; }
+		public GameServer? GameServer { get; set; }
+		public string Message { get; set; } = string.Empty;
 	}
 }
