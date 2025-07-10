@@ -4,180 +4,207 @@ using MKCards.Common.Models;
 
 namespace MKCards.Server.Services
 {
-    public interface IGameServerService
-    {
-        Task<GameServerResponse> CreateGameServerAsync(CreateGameRequest request, string connectionId);
-        Task<GameServerResponse> JoinGameServerAsync(JoinGameRequest request, string connectionId);
-        Task<PlayerLeaveResponse> LeaveGameServerAsync(string connectionId);
-        Task<GameServer?> GetGameServerAsync(string gameId);
-        Task<List<GameServer>> GetAllGameServersAsync();
-        Task<GameServer?> GetGameServerByConnectionIdAsync(string connectionId);
-        Task<bool> RemoveEmptyGameServersAsync();
-    }
+	using PlayerConnectionString = String;
+	using GameId = String;
 
-    public class GameServerService : IGameServerService
-    {
-        private readonly ConcurrentDictionary<string, GameServer> _gameServers = new();
-        private readonly ConcurrentDictionary<string, string> _connectionToGameMap = new();
+	public interface IGameServerService
+	{
+		Task<GameServerResponse> CreateGameServerAsync(CreateGameRequest request, PlayerConnectionString connectionId);
+		Task<GameServerResponse> JoinGameServerAsync(JoinGameRequest request, PlayerConnectionString connectionId);
+		Task<PlayerLeftResponse> LeaveGameServerAsync(PlayerConnectionString connectionId);
+		Task<GameServer?> GetGameServerAsync(GameId gameId);
+		Task<List<GameServer>> GetAllGameServersAsync();
+		Task<GameServer?> GetGameServerByConnectionIdAsync(PlayerConnectionString connectionId);
+		Task<bool> RemoveEmptyGameServersAsync();
+	}
 
-        public async Task<GameServerResponse> CreateGameServerAsync(CreateGameRequest request, string connectionId)
-        {
-            var gameId = GenerateGameId();
-            var gameServer = new GameServer
-            {
-                Id = gameId,
-                Name = request.GameName,
-                CreatorConnectionId = connectionId,
-                MaxPlayers = request.MaxPlayers
-            };
+	public class GameServerService : IGameServerService
+	{
 
-            var creator = new Player
-            {
-                ConnectionId = connectionId,
-                Name = request.PlayerName
-            };
+		private readonly ConcurrentDictionary<GameId, GameServer> _gameServers = new();
+		private readonly ConcurrentDictionary<PlayerConnectionString, GameId> _connectionToGameMap = new();
 
-            gameServer.Players.TryAdd(connectionId, creator);
-            _gameServers.TryAdd(gameId, gameServer);
-            _connectionToGameMap.TryAdd(connectionId, gameId);
+		private bool IsGameNameUnique(string name) => !_gameServers.Values.Any(gameServer => gameServer.Name == name);
 
-            return new GameServerResponse
-            {
-                Success = true,
-                Message = "Game server created successfully",
-                GameId = gameId,
-                GameServer = gameServer
-            };
-        }
+		public async Task<GameServerResponse> CreateGameServerAsync(CreateGameRequest request, string connectionId)
+		{
+			if (!IsGameNameUnique(request.GameName))
+			{
+				return new GameServerResponse
+				{
+					Success = false,
+					Message = $"Game server with name `{request.GameName}` has been already created!",
+					GameId = string.Empty,
+					GameServer = null
+				};
+			}
 
-        public async Task<GameServerResponse> JoinGameServerAsync(JoinGameRequest request, string connectionId)
-        {
-            if (!_gameServers.TryGetValue(request.GameId, out var gameServer))
-            {
-                return new GameServerResponse
-                {
-                    Success = false,
-                    Message = "Game server not found"
-                };
-            }
+			var gameId = GenerateGameId();
+			var gameServer = new GameServer
+			{
+				Id = gameId,
+				Name = request.GameName,
+				CreatorConnectionId = connectionId,
+				MaxPlayers = request.MaxPlayers
+			};
 
-            if (gameServer.Players.Count >= gameServer.MaxPlayers)
-            {
-                return new GameServerResponse
-                {
-                    Success = false,
-                    Message = "Game server is full"
-                };
-            }
+			var creator = new Player
+			{
+				ConnectionId = connectionId,
+				Name = request.PlayerName
+			};
 
-            if (gameServer.State != GameState.Waiting)
-            {
-                return new GameServerResponse
-                {
-                    Success = false,
-                    Message = "Game is already in progress"
-                };
-            }
+			gameServer.Players.TryAdd(connectionId, creator);
+			_gameServers.TryAdd(gameId, gameServer);
+			_connectionToGameMap.TryAdd(connectionId, gameId);
 
-            var player = new Player
-            {
-                ConnectionId = connectionId,
-                Name = request.PlayerName
-            };
+			return new GameServerResponse
+			{
+				Success = true,
+				Message = "Game server created successfully",
+				GameId = gameId,
+				GameServer = gameServer
+			};
+		}
 
-            gameServer.Players.TryAdd(connectionId, player);
-            _connectionToGameMap.TryAdd(connectionId, request.GameId);
+		public async Task<GameServerResponse> JoinGameServerAsync(JoinGameRequest request, string connectionId)
+		{
+			if (!_gameServers.TryGetValue(request.GameId, out var gameServer))
+			{
+				return new GameServerResponse
+				{
+					Success = false,
+					Message = $"Game server with ID `{request.GameId}` not found!"
+				};
+			}
 
-            return new GameServerResponse
-            {
-                Success = true,
-                Message = "Successfully joined game server",
-                GameId = request.GameId,
-                GameServer = gameServer
-            };
-        }
+			if (gameServer.Players.Count >= gameServer.MaxPlayers)
+			{
+				return new GameServerResponse
+				{
+					Success = false,
+					Message = $"Game server with ID `{request.GameId}` is full!"
+				};
+			}
 
-        public async Task<PlayerLeaveResponse> LeaveGameServerAsync(string connectionId)
-        {
-            Debug.Assert(connectionId != null);
+			if (gameServer.State != GameServer.GameState.Waiting)
+			{
+				return new GameServerResponse
+				{
+					Success = false,
+					Message = $"Game on server with ID `{request.GameId}` is already in progress!"
+				};
+			}
 
-            if (!_connectionToGameMap.TryGetValue(connectionId, out var gameId))
-            {
-                return new PlayerLeaveResponse
-                {
-                    Success = false,
-                    GameServer = null
-                };
-            }
+			bool isNameUniqueInGameServer = !_gameServers[request.GameId].Players.Values.Any(player => player.Name == request.PlayerName);
+			if (!isNameUniqueInGameServer)
+			{
+				return new GameServerResponse
+				{
+					Success = false,
+					Message = $"Player name `{request.PlayerName}` is already present in the game server!",
+				};
+			}
 
-            if (!_gameServers.TryGetValue(gameId, out var gameServer))
-            {
-                return new PlayerLeaveResponse
-                {
-                    Success = false,
-                    GameServer = null
-                };
-            }
+			var player = new Player
+			{
+				ConnectionId = connectionId,
+				Name = request.PlayerName
+			};
 
-            gameServer.Players.TryRemove(connectionId, out _);
-            _connectionToGameMap.TryRemove(connectionId, out _);
+			gameServer.Players.TryAdd(connectionId, player);
+			_connectionToGameMap.TryAdd(connectionId, request.GameId);
 
-            // Remove game server if empty
-            if (gameServer.Players.IsEmpty)
-            {
-                _gameServers.TryRemove(gameId, out _);
-                return new PlayerLeaveResponse
-                {
-                    Success = true,
-                    GameServer = null
-                };
-            }
+			return new GameServerResponse
+			{
+				Success = true,
+				Message = "Successfully joined game server",
+				GameId = request.GameId,
+				GameServer = gameServer
+			};
+		}
 
-            return new PlayerLeaveResponse
-            {
-                Success = true,
-                GameServer = gameServer
-            };
-        }
+		public async Task<PlayerLeftResponse> LeaveGameServerAsync(string connectionId)
+		{
+			Debug.Assert(connectionId != null);
 
-        public async Task<GameServer?> GetGameServerAsync(string gameId)
-        {
-            _gameServers.TryGetValue(gameId, out var gameServer);
-            return gameServer;
-        }
+			if (!_connectionToGameMap.TryGetValue(connectionId, out var gameId))
+			{
+				return new PlayerLeftResponse
+				{
+					Success = false,
+					GameServer = null
+				};
+			}
 
-        public async Task<List<GameServer>> GetAllGameServersAsync()
-        {
-            return _gameServers.Values.ToList();
-        }
+			if (!_gameServers.TryGetValue(gameId, out var gameServer))
+			{
+				return new PlayerLeftResponse
+				{
+					Success = false,
+					GameServer = null
+				};
+			}
 
-        public async Task<GameServer?> GetGameServerByConnectionIdAsync(string connectionId)
-        {
-            if (!_connectionToGameMap.TryGetValue(connectionId, out var gameId))
-            {
-                return null;
-            }
+			gameServer.Players.TryRemove(connectionId, out _);
+			_connectionToGameMap.TryRemove(connectionId, out _);
 
-            return await GetGameServerAsync(gameId);
-        }
+			// Remove game server if empty
+			if (gameServer.Players.IsEmpty)
+			{
+				_gameServers.TryRemove(gameId, out _);
+				return new PlayerLeftResponse
+				{
+					Success = true,
+					GameServer = null
+				};
+			}
 
-        public async Task<bool> RemoveEmptyGameServersAsync()
-        {
-            var emptyServers = _gameServers.Where(kvp => kvp.Value.Players.IsEmpty).ToList();
-            foreach (var server in emptyServers)
-            {
-                _gameServers.TryRemove(server.Key, out _);
-            }
-            return true;
-        }
+			return new PlayerLeftResponse
+			{
+				Success = true,
+				GameServer = gameServer
+			};
+		}
 
-        private string GenerateGameId()
-        {
-            // Generate a 6-character alphanumeric code
-            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-            var random = new Random();
-            return new string(Enumerable.Repeat(chars, 6)
-                .Select(s => s[random.Next(s.Length)]).ToArray());
-        }
-    }
+		public async Task<GameServer?> GetGameServerAsync(string gameId)
+		{
+			_gameServers.TryGetValue(gameId, out var gameServer);
+			return gameServer;
+		}
+
+		public async Task<List<GameServer>> GetAllGameServersAsync()
+		{
+			return _gameServers.Values.ToList();
+		}
+
+		public async Task<GameServer?> GetGameServerByConnectionIdAsync(string connectionId)
+		{
+			if (!_connectionToGameMap.TryGetValue(connectionId, out var gameId))
+			{
+				return null;
+			}
+
+			return await GetGameServerAsync(gameId);
+		}
+
+		public async Task<bool> RemoveEmptyGameServersAsync()
+		{
+			var emptyServers = _gameServers.Where(kvp => kvp.Value.Players.IsEmpty).ToList();
+			foreach (var server in emptyServers)
+			{
+				_gameServers.TryRemove(server.Key, out _);
+			}
+			return true;
+		}
+
+		private string GenerateGameId()
+		{
+			// Generate a 6-character alphanumeric code
+			const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+			var random = new Random();
+			return new string(Enumerable.Repeat(chars, 6)
+				.Select(s => s[random.Next(s.Length)]).ToArray());
+		}
+	}
 }
