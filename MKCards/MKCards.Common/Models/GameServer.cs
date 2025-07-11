@@ -5,12 +5,17 @@ namespace MKCards.Common.Models
 	using PlayerConnectionString = String;
 	public class GameServer
 	{
-
 		public enum GameState
 		{
 			Waiting,
 			InProgress,
 			Finished
+		}
+
+		public enum GameServerVisibility
+		{
+			Public,
+			Private
 		}
 
 		public string Id { get; set; } = string.Empty;
@@ -20,5 +25,6 @@ namespace MKCards.Common.Models
 		public ConcurrentDictionary<PlayerConnectionString, Player> Players { get; set; } = new();
 		public int MaxPlayers { get; set; } = 4;
 		public GameState State { get; set; } = GameState.Waiting;
+		public GameServerVisibility Visibility { get; set; } = GameServerVisibility.Private;
 	}
 }

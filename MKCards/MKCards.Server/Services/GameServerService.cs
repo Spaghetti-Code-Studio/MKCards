@@ -34,7 +34,7 @@ namespace MKCards.Server.Services
 				return new GameServerResponse
 				{
 					Success = false,
-					Message = $"Game server with name `{request.GameName}` has been already created!",
+					Message = $"{(request.Visibility == GameServer.GameServerVisibility.Public ? "Public" : "Private")} game server with name `{request.GameName}` has been already created!",
 					GameId = string.Empty,
 					GameServer = null
 				};
@@ -46,7 +46,8 @@ namespace MKCards.Server.Services
 				Id = gameId,
 				Name = request.GameName,
 				CreatorConnectionId = connectionId,
-				MaxPlayers = request.MaxPlayers
+				MaxPlayers = request.MaxPlayers,
+				Visibility = request.Visibility
 			};
 
 			var creator = new Player
@@ -63,7 +64,7 @@ namespace MKCards.Server.Services
 			return new GameServerResponse
 			{
 				Success = true,
-				Message = $"Game server `{gameId}` created successfully.",
+				Message = $"{(request.Visibility == GameServer.GameServerVisibility.Public ? "Public" : "Private")} game server `{gameId}` created successfully.",
 				GameId = gameId,
 				GameServer = gameServer
 			};

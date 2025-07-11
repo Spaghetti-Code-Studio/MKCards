@@ -5,6 +5,7 @@
 		public string GameName { get; set; } = string.Empty;
 		public string PlayerName { get; set; } = string.Empty;
 		public int MaxPlayers { get; set; } = 4;
+		public GameServer.GameServerVisibility Visibility { get; set; }
 	}
 
 	public class JoinGameRequest
