@@ -16,6 +16,4 @@
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.8" />
 	</ItemGroup>
 
-	<Import Project="..\MKCards.Common\MKCards.Common.projitems" Label="Shared" />
-
 </Project>
