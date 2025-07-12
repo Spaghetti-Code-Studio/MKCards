@@ -31,10 +31,12 @@ namespace MKCards.Server.Services
 		{
 			if (!IsGameNameUnique(request.GameName))
 			{
+				bool is_public = _gameServers.Values.First(gameServer => gameServer.Name == request.GameName).Visibility == GameServer.GameServerVisibility.Public;
+
 				return new GameServerResponse
 				{
 					Success = false,
-					Message = $"{(request.Visibility == GameServer.GameServerVisibility.Public ? "Public" : "Private")} game server with name `{request.GameName}` has been already created!",
+					Message = $"{(is_public ? "Public" : "Private")} game server with name `{request.GameName}` has been already created!",
 					GameId = string.Empty,
 					GameServer = null
 				};
