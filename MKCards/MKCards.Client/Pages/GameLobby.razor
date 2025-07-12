@@ -32,6 +32,12 @@
 							<label class="form-label">Max Players</label>
 							<input @bind="maxPlayers" type="number" class="form-control" min="2" max="10" />
 						</div>
+						<div class="mb-3">
+							<div class="m-1">
+								<Switch @bind-Value="publicServer" Label="Public" />
+							</div>
+						</div>
+
 						<button @onclick="CreateGameServer" class="btn btn-primary" disabled="@(!Connection.IsConnected || string.IsNullOrEmpty(playerName) || string.IsNullOrEmpty(gameName))">
 							Create Game Server
 						</button>
@@ -133,7 +139,7 @@
 			<div class="col-md-4">
 				<div class="card">
 					<div class="card-header">
-						<h5>Available Game Servers</h5>
+						<h5>Available Public Game Servers</h5>
 					</div>
 					<div class="card-body">
 						@if (gameServers.Any())
@@ -165,7 +171,7 @@
 			<div class="col-12">
 				<div class="card">
 					<div class="card-header">
-						<h5>Available Game Servers</h5>
+						<h5>Available Public Game Servers</h5>
 					</div>
 					<div class="card-body">
 						@if (gameServers.Any())
@@ -218,6 +224,8 @@
 
 	private string chatMessage = "";
 
+	private bool publicServer = false;
+
 	protected override async Task OnInitializedAsync()
 	{
 		Connection.RegisterHandler<GameServerResponse>("GameCreated", OnGameCreated);
@@ -238,7 +246,8 @@
 			{
 				GameName = gameName.Trim(),
 				PlayerName = playerName.Trim(),
-				MaxPlayers = maxPlayers
+				MaxPlayers = maxPlayers,
+				Visibility = (publicServer ? GameServer.GameServerVisibility.Public : GameServer.GameServerVisibility.Private) 
 			};
 
 		await Connection.SendMessageAsync("CreateGameServer", request);
@@ -352,7 +361,7 @@
 
 	private async Task OnGameServerListUpdated(List<GameServer> servers)
 	{
-		gameServers = servers;
+		gameServers = servers.Where(server => server.Visibility == GameServer.GameServerVisibility.Public).ToList();
 		await InvokeAsync(StateHasChanged);
 	}
 
