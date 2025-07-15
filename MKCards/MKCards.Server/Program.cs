@@ -36,7 +36,7 @@ namespace MKCards.Server
 				.AddIdentityCookies();
 
 			var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-			IDbContextOptionsBuilder dbContextOptionsBuilder = new MySqlDbContextOptionsBuilder(connectionString, new Version(11, 8, 2), DatabaseDebugMode.True);
+			IDbContextOptionsBuilder dbContextOptionsBuilder = new MySqlDbContextOptionsBuilder(connectionString, new Version(11, 8, 2));
 			builder.Services.AddDbContext<ApplicationDbContext>(dbContextOptionsBuilder.GetConfiguration());
 			builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
