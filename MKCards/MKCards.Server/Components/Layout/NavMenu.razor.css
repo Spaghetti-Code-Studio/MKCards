@@ -66,6 +66,10 @@
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='white' class='bi bi-arrow-bar-left' viewBox='0 0 16 16'%3E%3Cpath d='M12.5 15a.5.5 0 0 1-.5-.5v-13a.5.5 0 0 1 1 0v13a.5.5 0 0 1-.5.5ZM10 8a.5.5 0 0 1-.5.5H3.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L3.707 7.5H9.5a.5.5 0 0 1 .5.5Z'/%3E%3C/svg%3E");
 }
 
+.bi-armchair-nav-menu {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='white' class='bi bi-armchair-fill' viewBox='0 0 256 256'%3E%3Cpath d='M48 80a48 48 0 0 0-8 1v-9a40 40 0 0 1 40-40h96a40 40 0 0 1 40 40v9a48 48 0 0 0-55 39H95a48 48 0 0 0-47-40Zm192 46v-3l-1-1v-1a32 32 0 0 0-63 7v40a8 8 0 0 1-16 0v-32H96v32a8 8 0 0 1-16 0v-40a32 32 0 0 0-63-7v1l-1 1v5a32 32 0 0 0 24 31v41a16 16 0 0 0 16 16h144a16 16 0 0 0 16-16v-41a32 32 0 0 0 24-31v-2Z'/%3E%3C/svg%3E");
+}
+
 .nav-item {
     font-size: 0.9rem;
     padding-bottom: 0.5rem;
