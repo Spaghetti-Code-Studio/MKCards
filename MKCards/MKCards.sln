@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MKCards.Client", "MKCards.C
 EndProject
 Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "MKCards.Common", "MKCards.Common\MKCards.Common.shproj", "{CDF5D10E-2C8C-4260-886F-818DFC253CD1}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MKCards.Game", "MKCards.Game\MKCards.Game.csproj", "{536949BB-A4E4-4069-B4DF-F5AFFE287121}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,6 +25,10 @@ Global
 		{B783081B-29A6-40CD-89DF-FA8CB7144FB2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B783081B-29A6-40CD-89DF-FA8CB7144FB2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B783081B-29A6-40CD-89DF-FA8CB7144FB2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{536949BB-A4E4-4069-B4DF-F5AFFE287121}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{536949BB-A4E4-4069-B4DF-F5AFFE287121}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{536949BB-A4E4-4069-B4DF-F5AFFE287121}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{536949BB-A4E4-4069-B4DF-F5AFFE287121}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
