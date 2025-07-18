@@ -1,27 +1,22 @@
-// TODO: we need a dedicated way to manage this, just a simple string wrapper that handles the viewBox should suffice 
-using SVGCardImage = System.String;
-
-enum CardAttributeType
-{
-    Bool,       // true or false
-    Integer,    // basic signed numbers
-    String,     // arbitrary string
-}
-
 interface ICard : IOrderable<ICard>
 {
     /// <summary>
     /// The SVG image displayed at the front of the card
     /// </summary>
-    SVGCardImage FrontFace { get; }
+    string FrontFace { get; }
 
     /// <summary>
     /// The SVG image displayed at the back of the card
     /// </summary>
-    SVGCardImage BackFace { get; }
+    string BackFace { get; }
 
     /// <summary>
-    /// Card attribute mapping attribute names to typed values
+    /// Reports global visibility:
+    /// visible cards show their front fact, invisible cards their back face
     /// </summary>
-    IDictionary<string, (CardAttributeType, object)> CardAttributes; // TODO: inconsistent state?
+    bool Visible { get; }
+
+    // TODO: some players can see a card while others cannot, there should be a method that takes a players
+    // and considers the visibility for them specifically
+    // bool IsVisible(IPlayer);
 }
